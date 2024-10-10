@@ -1,0 +1,64 @@
+---
+
+- name: Install basic tools
+  dnf:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - net-tools
+    - netcat
+    - git
+    - tmux
+    - zsh
+    - htop
+    - tree
+    - fzf
+    - neovim
+    - the_silver_searcher
+  become: yes
+
+- name: Install mise CLI
+  get_url:
+    url: https://mise.run
+    dest: /tmp/install_mise.sh
+    mode: '0755'
+
+- name: Run mise install script
+  command: /tmp/install_mise.sh
+  register: mise_install
+  changed_when: mise_install.rc == 0
+
+
+- name: Activate mise in .bashrc
+  lineinfile:
+    path: ~/.bashrc
+    line: 'eval "$(mise activate bash)"'
+    state: present
+    create: yes
+
+- name: Activate mise in .zshrc
+  lineinfile:
+    path: ~/.zshrc
+    line: 'eval "$(mise activate zsh)"'
+    state: present
+    create: yes
+
+- name: Install dev tools with mise
+  command: mise use --global "{{ item }}"
+  with_items:
+  - go@1.22
+  - python@3.10
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/home/{{ ansible_user }}/.local/share/mise/shims:/home/{{ ansible_user }}/.local/bin"
+
+- name: Change default shell for user
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    shell: /usr/bin/zsh
+  become: yes
+
+- name: Copy files to remote host
+  copy:
+    src: "{{ item }}"
+    dest: "{{ item | basename }}"
+  loop: "{{ files_to_copy }}"

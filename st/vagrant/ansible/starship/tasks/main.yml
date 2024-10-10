@@ -1,0 +1,32 @@
+---
+- name: Install required packages
+  package:
+    name:
+      - curl
+      - git
+    state: present
+  become: yes
+
+- name: Download and install Starship
+  shell: curl -sS https://starship.rs/install.sh | sh
+  args:
+    executable: /bin/bash
+  environment:
+    FORCE: yes
+
+
+- name: Add Starship initialization to .bashrc
+  lineinfile:
+    path: ~/.bashrc
+    line: 'eval "$(starship init bash)"'
+    state: present
+
+- name: Add Starship initialization to .zshrc
+  lineinfile:
+    path: ~/.zshrc
+    line: 'eval "$(starship init zsh)"'
+    state: present
+
+- name: Notify user to restart shell
+  debug:
+    msg: "Starship installed. Please restart your shell or run 'source ~/.bashrc' or 'source ~/.zshrc'."

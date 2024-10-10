@@ -1,0 +1,9 @@
+---
+- name: Provision Vagrant VM
+  hosts: all
+  tasks:
+  roles:
+    - dev
+    - docker
+    - starship
+    - kepler/stress

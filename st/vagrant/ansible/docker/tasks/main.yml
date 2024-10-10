@@ -1,0 +1,38 @@
+---
+- name: Install required packages for Docker
+  dnf:
+    name: dnf-plugins-core
+    state: present
+  become: yes
+
+- name: Add Docker's official GPG key
+  rpm_key:
+    state: present
+    key: https://download.docker.com/linux/fedora/gpg
+  become: yes
+
+- name: Add Docker repository
+  get_url:
+    url: https://download.docker.com/linux/fedora/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+  become: yes
+
+- name: Install Docker
+  dnf:
+    name: docker-ce
+    state: present
+  become: yes
+
+- name: Add user to the Docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
