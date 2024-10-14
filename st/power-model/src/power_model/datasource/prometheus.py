@@ -1,9 +1,9 @@
-from datetime import datetime
-import logging
 import functools as fn
-import pandas as pd
+import logging
+from datetime import datetime
 
-from prometheus_api_client import PrometheusConnect, MetricRangeDataFrame
+import pandas as pd
+from prometheus_api_client import MetricRangeDataFrame, PrometheusConnect
 
 # Initialize logger
 logger = logging.getLogger(__name__)

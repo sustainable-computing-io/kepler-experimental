@@ -1,31 +1,24 @@
-from typing import NamedTuple
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.pipeline import Pipeline
-from tabulate import tabulate
-import pandas as pd
 import json
-import pathlib
-import os
-from datetime import datetime
-
-from sklearn.pipeline import make_pipeline
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from xgboost import XGBRegressor
-
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
-import typing
 import logging
-
-import numpy as np
-import joblib
-
-from power_model.datasource import prometheus
-
+import os
+import pathlib
+import typing
+from datetime import datetime
+from typing import NamedTuple
 
 # TODO: delete me
-import ipdb
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from tabulate import tabulate
+from xgboost import XGBRegressor
+
+from power_model.datasource import prometheus
 
 logger = logging.getLogger(__name__)
 
@@ -55,32 +48,51 @@ def calculate_metrics(y_true, y_pred) -> ErrorMetrics:
     return ErrorMetrics(mae, mse, mape, r2)
 
 
-def train_one(name: str, model: Pipeline, X, y, model_path: pathlib.Path) -> tuple[Pipeline, ErrorMetrics]:
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
+def train_one(name: str, pipeline: Pipeline, X, y, model_path: pathlib.Path) -> tuple[Pipeline, ErrorMetrics]:
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_val)
-    metrics = calculate_metrics(y_val, y_pred)
+    pipeline.fit(X_train, y_train)
+    # find accuracy
+    y_pred = pipeline.predict(X_test)
+    metrics = calculate_metrics(y_test, y_pred)
 
     # Save model with Joblib
-    joblib.dump(model, os.path.join(model_path, f"{name}_model.joblib"))
+    joblib.dump(pipeline, os.path.join(model_path, f"{name}_model.joblib"))
     save_to_json(metrics._asdict(), os.path.join(model_path, f"{name}_model_error.json"))
 
-    return model, metrics
+    return pipeline, metrics
 
 
 # TODO: fix typing.Any
-def regressor_for_model_name(name: str, params: dict[str, typing.Any]) -> typing.Union[XGBRegressor, LinearRegression]:
+def pipeline_for_model_name(name: str, params: dict[str, typing.Any]) -> Pipeline:
     if name == "xgboost":
-        return XGBRegressor(**params)
+        return Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("xgboost", XGBRegressor(**params)),
+            ]
+        )
     if name == "linear":
-        return LinearRegression(**params)
-    if name == "polynomial":
-        poly = PolynomialFeatures(**params)
-        return make_pipeline(poly, LinearRegression())
+        return Pipeline(
+                [
+                    ("scaler", StandardScaler()),
+                    ("linear", LinearRegression(**params)),
 
-    if name == "logistic":
-        return LogisticRegression(**params)
+                ]
+        )
+    if name == "polynomial":
+        return Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("poly_features", PolynomialFeatures(**params)),
+                ("linear", LinearRegression()),  # or any other model you wish to use
+            ]
+        )
+        # poly = PolynomialFeatures(**params)
+        # return make_pipeline(poly, LinearRegression())
+
+    # if name == "logistic":
+    #     return LogisticRegression(**params)
 
     raise ValueError(f"Invalid model name: {name}")
 
@@ -93,7 +105,7 @@ def train_models(X, y, models: dict[str, typing.Any], base_dir: pathlib.Path):
     os.makedirs(model_path, exist_ok=True)
 
     for name, params in models.items():
-        regressor = regressor_for_model_name(name, params or {})
+        regressor = pipeline_for_model_name(name, params or {})
         model, err_metrics = train_one(name, regressor, X, y, model_path)
         trained_models[name] = model
         metrics[name] = err_metrics
@@ -109,8 +121,11 @@ def create_model_for_feature(
     models: dict[str, typing.Any],
 ):
     # Prepare training data (X and y)
-    X = df[features].values
-    y = df["target"].values
+    # ipdb.set_trace()
+
+    # input_data = pd.DataFrame(numpy_array, columns=['feature1', 'feature2', ...])
+    X = df[features] # .rolling(3).mean().dropna()
+    y = df["target"] # .rolling(3).mean().dropna()
 
     model_base_path = train_path / name
     os.makedirs(model_base_path, exist_ok=True)
@@ -185,8 +200,8 @@ class Predictor:
             df_features = self.prom.range_query(start=start, end=end, step=step, **features)
             df_y = self.prom.range_query(start=start, end=end, step=step, target=self.target)
 
-            X = df_features[features.keys()].values
-            y = df_y["target"].values
+            X = df_features[features.keys()]
+            y = df_y["target"]
 
             for model_name, model in self.models[group_name].items():
                 y_pred = model.predict(X)
@@ -207,28 +222,29 @@ class Predictor:
             at = datetime.now()
 
         df_y = self.prom.instant_query(at=at, target=self.target)
-        y = df_y["target"].values
+        y_val = df_y["target"].values
 
         for group in self.groups:
             group_name = group["name"]
             features = group["features"]
             df_features = self.prom.instant_query(at=at, **features)
-            X = df_features[features.keys()].values
+            X = df_features[features.keys()]
 
             table = []
 
             for model_name, model in self.models[group_name].items():
                 y_pred = model.predict(X)
-                diff = y - y_pred
-                percent_error = np.round(abs(diff / y) * 100, 2)
+                diff = y_val - y_pred
+                percent_error = np.round(abs(diff / y_val) * 100, 2)
 
                 row = [group_name, model_name]
-                row = np.append(row, X[0])
-                row = np.append(row, y[0])
-                row = np.append(row, y_pred[0])
 
-                diff = y - y_pred
-                percent_error = np.round(abs(diff / y) * 100, 2)
+                # ipdb.set_trace()
+                row = np.append(row, *X.values)
+                row = np.append(row, *y_val)
+                row = np.append(row, *y_pred)
+
+                percent_error = np.round(abs(diff / y_val) * 100, 2)
                 row = np.append(row, [np.round(diff, 2), percent_error])
                 table.append(row.tolist())
 
@@ -240,6 +256,3 @@ class Predictor:
                 )
             )
 
-
-def create_predictor(pipeline) -> Predictor:
-    return Predictor(pipeline)

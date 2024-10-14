@@ -1,13 +1,14 @@
 # SPDX-FileCopyrightText: 2024-present Sunil Thaha <sthaha@redhat.com>
 #
 # SPDX-License-Identifier: MIT
-import click
 import logging
 import time
+from datetime import UTC, datetime, timedelta
 
-from power_model.__about__ import __version__
+import click
+
 from power_model import trainer
-from datetime import datetime, timedelta
+from power_model.__about__ import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +105,8 @@ def run(file):
     "-e",
     "--end",
     required=False,
-    type=click.DateTime(),
-    default=datetime.now(),
+    type=click.DateTime(formats=["%Y-%m-%dT%H:%M:%SZ"]),
+    default=datetime.now(UTC),
 )
 @click.option(
     "-d",
@@ -114,7 +115,7 @@ def run(file):
     type=int,
     default=5 * 60,
 )
-def compute_error(file, start: datetime, end: datetime, duration: int):
+def compute_error(file, start: datetime|None, end: datetime, duration: int):
     """Run models based on the provided pipeline configuration and compare the prediction against learning."""
 
     if start is None:
@@ -122,6 +123,9 @@ def compute_error(file, start: datetime, end: datetime, duration: int):
             raise click.ClickException("Please provide start or non-zero duration")
 
         start = end - timedelta(seconds=duration)
+
+    if start is not None and duration > 0:
+        end = start + timedelta(seconds=duration)
 
     pipeline = trainer.load_pipeline(file)
     predictor = trainer.Predictor(pipeline)
