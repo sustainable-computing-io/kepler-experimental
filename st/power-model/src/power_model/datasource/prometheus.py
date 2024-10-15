@@ -67,12 +67,12 @@ class Client:
         return merged_df
 
     def range_query(self, start: datetime, end: datetime, step, **queries):
-        results = []
         common_columns = set(["timestamp"])
 
         # Iterate over each query provided in kwargs
+        results = []
         for key, promql in queries.items():
-            logger.info(f"Running query {key}: '{promql}' with step {step} between {start} and {end}")
+            logger.debug(f"Running query {key}: '{promql}' with step {step} between {start} and {end}")
 
             data = self.prom.custom_query_range(query=promql, start_time=start, end_time=end, step=step)
             if not data or len(data[0]["values"]) == 0:
@@ -91,7 +91,8 @@ class Client:
             results.append(metric_df)
 
         # Merge all DataFrames on timestamp column
-        logger.info("results: %d", len(results))
+        logger.info(f"{' | '.join([*queries])}: { [df.shape for df in results ]}")
+
         merged_df = fn.reduce(
             lambda left, right: pd.merge(left, right, on=list(common_columns), how="inner"),
             results,
