@@ -9,27 +9,22 @@ train:
   step: 1s
 
   vars:
-    - learn_rate: 120s
-    - run_rate: 120s
+    rate: 120s
 
   pipelines: #todo: rename as pipelines
     - name: node-cpu
       features:
         node_cpu_time: |
-          sum( rate( node_cpu_seconds_total{job="vm-node-exporter", mode!="idle"}[120s])) * 1000
+          sum(
+            rate( node_cpu_seconds_total{job="vm-node-exporter", mode!="idle"}[${rate}])
+          ) * 1000
 
     - name: kepler-vm-cpu
       features:
-        cpu_time: sum(rate(kepler_process_bpf_cpu_time_ms_total{job="vm", pid!="1"}[120s]))
-        page_cache_hits: sum(rate(kepler_process_bpf_page_cache_hit_total{job="vm"}[120s]))
+        cpu_time: sum(rate(kepler_process_bpf_cpu_time_ms_total{job="vm", pid!="1"}[${rate}]))
+        page_cache_hits: sum(rate(kepler_process_bpf_page_cache_hit_total{job="vm"}[${rate}]))
 
-    # - name: kepler-metal-cpu
-    #   features:
-    #     cpu_time: sum(rate(kepler_vm_bpf_cpu_time_ms_total{job="metal"}[120s]))
-    #     page_cache_hits: sum(rate(kepler_vm_bpf_page_cache_hit_total{job="metal"}[120s]))
-
-
-  target: sum(rate(kepler_vm_package_joules_total{job="metal"}[120s]))
+  target: sum(rate(kepler_vm_package_joules_total{job="metal"}[${rate}]))
 
   # for each group create
   models:
