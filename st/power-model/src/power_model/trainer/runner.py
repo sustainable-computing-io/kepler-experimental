@@ -157,12 +157,12 @@ def train(config):
 
     df_target = prom.range_query(start=start_at, end=end_at, step=step, target=target_query)
 
-    groups = config["train"]["groups"]
+    pipelines = config["train"]["pipelines"]
     train_path = pathlib.Path(config["train"]["path"])
 
-    for group in groups:
-        name = group["name"]
-        features = group["features"]
+    for pipeline in pipelines:
+        name = pipeline["name"]
+        features = pipeline["features"]
         df_features = prom.range_query(start=start_at, end=end_at, step=step, **features)
         df = pd.merge(df_features, df_target, on="timestamp")
         df.info()
@@ -177,13 +177,13 @@ class Predictor:
         train = pipeline["train"]
         model_path = pathlib.Path(train["path"])
 
-        self.groups = train["groups"]
-        group_names = [g["name"] for g in self.groups]
+        self.pipelines = train["pipelines"]
+        pipeline_names = [p["name"] for p in self.pipelines]
 
         models = train["models"]
         self.models = {
             name: {m: joblib.load(model_path / name / "models" / f"{m}_model.joblib") for m in models}
-            for name in group_names
+            for name in pipeline_names
         }
 
         self.target = train["target"]
@@ -193,9 +193,9 @@ class Predictor:
         step = step or self.step
 
         summary = []
-        for group in self.groups:
-            group_name = group["name"]
-            features = group["features"]
+        for pipeline in self.pipelines:
+            pipeline_name = pipeline["name"]
+            features = pipeline["features"]
 
             df_features = self.prom.range_query(start=start, end=end, step=step, **features)
             df_y = self.prom.range_query(start=start, end=end, step=step, target=self.target)
@@ -203,10 +203,10 @@ class Predictor:
             X = df_features[features.keys()]
             y = df_y["target"]
 
-            for model_name, model in self.models[group_name].items():
+            for model_name, model in self.models[pipeline_name].items():
                 y_pred = model.predict(X)
                 metrics = calculate_metrics(y, y_pred)
-                summary.append([group_name, model_name, metrics.mape, metrics.mae, metrics.mse, metrics.r2])
+                summary.append([pipeline_name, model_name, metrics.mape, metrics.mae, metrics.mse, metrics.r2])
             summary.append([])
 
         print(
@@ -224,20 +224,20 @@ class Predictor:
         df_y = self.prom.instant_query(at=at, target=self.target)
         y_val = df_y["target"].values
 
-        for group in self.groups:
-            group_name = group["name"]
-            features = group["features"]
+        for pipeline in self.pipelines:
+            pipeline_name = pipeline["name"]
+            features = pipeline["features"]
             df_features = self.prom.instant_query(at=at, **features)
             X = df_features[features.keys()]
 
             table = []
 
-            for model_name, model in self.models[group_name].items():
+            for model_name, model in self.models[pipeline_name].items():
                 y_pred = model.predict(X)
                 diff = y_val - y_pred
                 percent_error = np.round(abs(diff / y_val) * 100, 2)
 
-                row = [group_name, model_name]
+                row = [pipeline_name, model_name]
 
                 # ipdb.set_trace()
                 row = np.append(row, *X.values)
@@ -251,7 +251,7 @@ class Predictor:
             print(
                 tabulate(
                     table,
-                    headers=["Group", "Name", *features.keys(), "Target", "Predicted", "Diff", "Err %"],
+                    headers=["Pipeline", "Name", *features.keys(), "Target", "Predicted", "Diff", "Err %"],
                     tablefmt="tabulate",
                 )
             )
