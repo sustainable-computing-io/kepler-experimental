@@ -1,0 +1,203 @@
+name: power-model
+services:
+
+  prometheus:
+    build:
+      context: ./prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - prom-data:/prometheus
+      - type: bind
+        source: ./prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+      - type: bind
+        source: ./prometheus/scrape-configs/metal.yaml
+        target: /etc/prometheus/scrape-configs/metal.yaml
+    networks:
+      - monitoring
+      - scaph-network
+      - kepler-network
+      - node-exporter-network
+      - virt-net # external n/w for accessing VM
+
+    extra_hosts:
+      # WARN: requires VM's IP to be exported as an ENV variable
+      - vm=${VM_IP:?error}
+
+    healthcheck:
+      test: wget -q --spider http://localhost:9090/ -O /dev/null || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+  grafana:
+    build:
+      context: ./grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/training/dashboard.json
+
+    volumes:
+      - type: bind
+        source: ./grafana/dashboards/training
+        target: /var/lib/grafana/dashboards/training
+
+      - type: bind
+        source: ./grafana/dashboards/scaphandre
+        target: /var/lib/grafana/dashboards/scaphandre
+
+    user: "1000" # NOTE: change this to your `id -u`
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    networks:
+      - monitoring
+
+    healthcheck:
+      test: curl -f http://localhost:3000/ || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+
+
+  kepler-metal:
+    image: quay.io/sustainable_computing_io/kepler:latest
+    ports:
+      # NOTE: use 9888 to keep the host 8888 port free for any local testing
+      # e.g. sudo ./bin/kepler
+      - 9188:8888
+    privileged: true
+    pid: host
+
+    volumes:
+      - type: bind
+        source: /proc
+        target: /proc
+      - type: bind
+        source: /sys
+        target: /sys
+      - type: bind
+        source: ./kepler/etc/kepler
+        target: /etc/kepler
+
+    entrypoint: [/usr/bin/bash, -c]
+
+    command:
+      - |
+        set -x;
+        /usr/bin/kepler \
+          -address "0.0.0.0:8888" \
+          -v "8" \
+          -enable-gpu=false
+    networks:
+      - kepler-network
+
+    healthcheck:
+      test: curl -f http://localhost:8888/metrics || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+    cap_add:
+      - ALL
+
+
+  scaphandre:
+    # image: hubblo/scaphandre
+    build:
+      context: scaphandre
+      dockerfile: Dockerfile
+    privileged: true
+    ports:
+      - 8880:8080
+    volumes:
+      - type: bind
+        source: /proc
+        target: /proc
+      - type: bind
+        source: /sys/class/powercap
+        target: /sys/class/powercap
+    command: [prometheus]
+    networks:
+      - scaph-network
+
+    healthcheck:
+      test: curl -f http://localhost:8080/metrics || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    pid: host
+    ports:
+      - 9100:9100
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+      - type: bind
+        source: /sys
+        target: /host/sys
+      - type: bind
+        source: /
+        target: /rootfs
+    command:
+      # - --log.level=debug
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.cpufreq
+      - --collector.perf
+      - --collector.meminfo
+      - --collector.rapl
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    user: root
+    networks:
+      - node-exporter-network
+
+networks:
+  scaph-network:
+  kepler-network:
+  node-exporter-network:
+  #
+  #
+  #  NOTE: To allow access to VM from prometheus container
+  #  external network named - virt-net must be created using
+  #  the following command
+  #
+  # use:
+  # ❯ ip addr show virbr0
+  #
+  #  │ 17: virbr0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+  #  │  link/ether 58:52:00:a6:77:2f brd ff:ff:ff:ff:ff:ff
+  #  │  inet 192.168.124.1/24 brd 192.168.124.255 scope global virbr0
+  #  │  valid_lft forever preferred_lft forever
+  #
+  # look for `inet` in the output and use that for the subnet in the next command
+  #
+  #  docker network create \
+  #    --driver=macvlan \
+  #    --subnet=192.168.124.0/24 \
+  #    -o parent=virbr0 virt-net
+  #
+  monitoring:
+  virt-net:
+    name: virt-net
+    external: true
+
+volumes:
+  # volume for holding prometheus (ts)db
+  prom-data:
+

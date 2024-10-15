@@ -4,8 +4,8 @@ prometheus:
 train:
   path: ./tmp/train
 
-  start_at: 2024-10-14T04:06:22Z
-  end_at:   2024-10-14T04:15:24Z
+  start_at: 2024-10-15T06:08:29Z
+  end_at:   2024-10-15T06:17:31Z
   step: 1s
 
   vars:
@@ -16,7 +16,7 @@ train:
       features:
         node_cpu_time: |
           sum(
-            rate( node_cpu_seconds_total{job="vm-node-exporter", mode!="idle"}[${rate}])
+            rate( node_cpu_seconds_total{job="vm-node-exporter", mode!="idle"}[${rate}] )
           ) * 1000
 
     - name: kepler-vm-cpu

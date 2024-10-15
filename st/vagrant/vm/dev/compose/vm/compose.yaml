@@ -1,0 +1,138 @@
+name: power-model
+services:
+  kepler:
+    image: quay.io/sustainable_computing_io/kepler:latest
+    ports:
+      - 9100:9100
+    privileged: true
+    pid: host
+    networks:
+      - kepler-network
+      - model-server-network # to support kepler -> model-server use-case
+    volumes:
+      - type: bind
+        source: /proc
+        target: /proc
+      - type: bind
+        source: /sys
+        target: /sys
+      - type: bind
+        source: ./kepler/etc/kepler
+        target: /etc/kepler
+
+        # NOTE: for estimator - kepler communication
+      - estimator-tmp:/tmp
+
+    healthcheck:
+      test: curl -f http://localhost:9100/metrics || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+    cap_add:
+      - ALL
+
+    entrypoint:
+      - /usr/bin/bash
+      - -c
+
+    command:
+      - |
+        # echo "Waiting for model-server"
+        # until [[ "$(curl -s -o /dev/null -w "%{http_code}" http://model-server:8100/best-models)" -eq 200 ]]; do
+        #   echo " ... waiting for model-server"
+        #   sleep 1
+        # done
+
+        # echo "Waiting for estimator socket"
+        # until [[ -e /tmp/estimator.sock ]]; do
+        #   echo " ... waiting for estimator socket"
+        #   sleep 1
+        # done
+
+        echo "starting kepler ..."
+        echo " * power-meter disabled: $$DISABLE_POWER_METER"
+        set -x
+        /usr/bin/kepler \
+          -address="0.0.0.0:9100" \
+          -v="5"
+
+    environment:
+      - DISABLE_POWER_METER=${DISABLE_POWER_METER:-true}
+
+  estimator:
+    image: quay.io/sustainable_computing_io/kepler_model_server:latest
+    command: [estimator, -l, debug]
+
+    volumes:
+      - type: bind
+        source: ./estimator/etc/kepler
+        target: /etc/kepler
+
+      - type: bind
+        source: ./estimator/models
+        target: /var/lib/estimator/models
+
+      - estimator-tmp:/tmp
+      - estimator-mnt:/mnt
+    networks:
+      - kepler-network
+      - model-server-network
+
+  # model-server:
+  #   image: quay.io/sustainable_computing_io/kepler_model_server:latest
+  #   command: [model-server, -l, debug]
+  #   ports:
+  #     - 8100:8100
+  #   volumes:
+  #     - type: bind
+  #       source: ./kepler/etc/kepler
+  #       target: /etc/kepler
+  #     - model-server-mnt:/mnt
+  #   networks:
+  #     - model-server-network
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    pid: host
+    ports:
+      - 9800:9100
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+      - type: bind
+        source: /sys
+        target: /host/sys
+      - type: bind
+        source: /
+        target: /rootfs
+    command:
+      # - --log.level=debug
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.cpufreq
+      - --collector.perf
+      - --collector.meminfo
+      - --collector.rapl
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    user: root
+    networks:
+      - node-exporter-network
+
+volumes:
+  # for kepler - estimator sock
+  estimator-tmp:
+
+  # for downloading models
+  estimator-mnt:
+  model-server-mnt:
+
+networks:
+  kepler-network:
+  model-server-network:
+  node-exporter-network:
