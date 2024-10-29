@@ -1,0 +1,47 @@
+prometheus:
+  url: http://pani.local.thaha.xyz:9090
+
+train:
+  path: ./tmp/train
+
+  start_at: 2024-10-23T05:54:00Z
+  end_at:   2024-10-23T06:03:30Z
+  step: 1s
+
+  vars:
+    rate: 12s
+    irate: 6s
+
+  pipelines: #todo: rename as pipelines
+    # - name: node-cpu
+    #   features:
+    #     node_cpu_time: |
+    #       sum(
+    #         rate( node_cpu_seconds_total{job="vm-node-exporter", mode!="idle"}[${rate}] )
+    #       ) * 1000
+
+    - name: kepler-vm-cpu
+      features:
+        cpu_time: sum(rate(kepler_process_bpf_cpu_time_ms_total{job="vm"}[${rate}]))
+        page_cache_hits: sum(rate(kepler_process_bpf_page_cache_hit_total{job="vm"}[${rate}]))
+
+    - name: kepler-vm-cpu-irate
+      features:
+        cpu_time: sum(irate(kepler_process_bpf_cpu_time_ms_total{job="vm"}[${irate}]))
+        page_cache_hits: sum(irate(kepler_process_bpf_page_cache_hit_total{job="vm"}[${irate}]))
+
+  target: sum(rate(kepler_vm_package_joules_total{job="metal"}[${rate}]))
+  #target: sum(irate(kepler_vm_package_joules_total{job="metal"}[${irate}]))
+  # target: |
+  #   sum(rate(node_rapl_package_joules_total{job="metal-node-exporter"}[${rate}])) -
+  #   sum(rate(node_rapl_package_joules_total{job="metal-node-exporter"}[${rate}] @1729137681) + 0.5)
+
+  # for each group create
+  models:
+    xgboost:
+      objective: "reg:squarederror"
+      random_state: 42
+    linear:
+      positive: true
+    polynomial:
+      degree: 2

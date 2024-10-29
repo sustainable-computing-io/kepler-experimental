@@ -12,6 +12,10 @@ echo_e() {
 	echo -e "$*" >&2
 }
 
+log() {
+	echo "$*" | tee -a $LOG_FILE
+}
+
 run() {
 	echo_e " ❯ $*\n"
 	${DRY_RUN:-false} && return 0
@@ -47,6 +51,8 @@ run_stress() {
 		done
 	done
 }
+
+declare LOG_FILE="gen-train-data.log"
 
 main() {
 	local n=${1:-1}
@@ -110,12 +116,12 @@ main() {
 	ended_at=$(date +%s)
 
 	local elapsed=$((ended_at - started_at))
-	echo "Loops: $n"
-	echo "started at: $started_at  " "$(date -u -d "@$started_at" +'%Y-%m-%dT%H:%M:%SZ')"
-	echo "ended   at: $ended_at  " "$(date -u -d "@$ended_at" +'%Y-%m-%dT%H:%M:%SZ')"
-	echo "elapsed   : $elapsed seconds"
-
+	log "Loops: $n"
+	log "started at: $started_at  " "$(date -u -d "@$started_at" +'%Y-%m-%dT%H:%M:%SZ')"
+	log "ended   at: $ended_at  " "$(date -u -d "@$ended_at" +'%Y-%m-%dT%H:%M:%SZ')"
+	log "elapsed   : $elapsed seconds"
 }
+
 # main() {
 # 	local n=${1:-1}
 # 	shift || true

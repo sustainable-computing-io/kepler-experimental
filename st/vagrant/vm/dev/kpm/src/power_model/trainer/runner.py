@@ -129,6 +129,9 @@ def create_model_for_feature(
 
     model_base_path = train_path / name
     os.makedirs(model_base_path, exist_ok=True)
+    # import ipdb
+    # ipdb.set_trace()
+    #df[*["timestamp", *features, "target"]].to_csv(model_base_path / "training_inputs.csv")
     df.to_csv(model_base_path / "training_inputs.csv")
 
     trained_models, metrics = train_models(X, y, models, model_base_path)
@@ -168,6 +171,17 @@ def train(config):
         df.info()
         create_model_for_feature(name, features.keys(), df, train_path, config["train"]["models"])
 
+
+class Prediction(NamedTuple):
+    pipeline: str
+    model: str
+    y_pred: float
+
+class KeplerPredition(NamedTuple):
+    package: list[int]
+    core: list[int]
+    uncore: list[int]
+    dram: list[int]
 
 class Predictor:
     def __init__(self, pipeline):
@@ -217,12 +231,16 @@ class Predictor:
             )
         )
 
-    def predict(self, at=None):
+
+
+    def predict(self, at=None) -> list[Prediction]:
         if at is None:
             at = datetime.now()
 
         df_y = self.prom.instant_query(at=at, target=self.target)
         y_val = df_y["target"].values
+
+        ret = []
 
         for pipeline in self.pipelines:
             pipeline_name = pipeline["name"]
@@ -234,12 +252,14 @@ class Predictor:
 
             for model_name, model in self.models[pipeline_name].items():
                 y_pred = model.predict(X)
+
                 diff = y_val - y_pred
                 percent_error = np.round(abs(diff / y_val) * 100, 2)
 
+                ret.append(Prediction(pipeline_name, model_name, y_pred[0]))
+
                 row = [pipeline_name, model_name]
 
-                # ipdb.set_trace()
                 row = np.append(row, *X.values)
                 row = np.append(row, *y_val)
                 row = np.append(row, *y_pred)
@@ -255,4 +275,20 @@ class Predictor:
                     tablefmt="tabulate",
                 )
             )
+
+        return ret
+
+
+    def kepler_predict(self, cpu_time, page_cache_hits) -> KeplerPredition:
+        # df_y = self.prom.instant_query(at=datetime.now(), target=self.target)
+        # y_val = df_y["target"].values
+        X = pd.DataFrame({"cpu_time": [cpu_time], "page_cache_hits": [page_cache_hits]})
+
+
+        # table = []
+
+        model = self.models["kepler-vm-cpu"]["xgboost"]
+        y_pred = model.predict(X)
+        ret = KeplerPredition(package=y_pred.tolist(), core=[0], uncore=[0], dram=[0]) 
+        return ret
 

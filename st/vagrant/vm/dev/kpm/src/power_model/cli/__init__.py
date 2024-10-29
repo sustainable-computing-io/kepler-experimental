@@ -2,10 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 import logging
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 
 import click
+from prometheus_client import start_http_server, Gauge
 
 from power_model import trainer
 from power_model.__about__ import __version__
@@ -58,6 +60,9 @@ def train(file):
 
         traceback.print_exc()
 
+def signal_handler(signum):
+    click.secho(f"Gracefully shutting down after receiving signal {signum}")
+    sys.exit(0)
 
 @pm.command()
 @click.option(
@@ -73,10 +78,15 @@ def run(file):
     # try:
     pipeline = trainer.load_pipeline(file)
     predictor = trainer.Predictor(pipeline)
+    target = Gauge('st_power_model_target',
+                   'CPU Frequency as reported by turbostat',
+                   ["pipeline", "model"])
 
     try:
         while True:
-            predictor.predict()
+            preditions = predictor.predict()
+            for p in preditions:
+                target.labels(p.pipeline, p.model).set(p.y_pred)
             time.sleep(1)
     except KeyboardInterrupt:
         click.echo("Exiting...")

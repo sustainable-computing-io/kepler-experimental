@@ -37,6 +37,7 @@ Source = "https://github.com/sthaha/power-model"
 
 [project.scripts]
 power-model = "power_model.cli:pm"
+estimator-proxy = "power_model.cli.estimator:proxy"
 
 [tool.hatch.version]
 path = "src/power_model/__about__.py"

@@ -45,11 +45,11 @@ services:
         #   sleep 1
         # done
 
-        # echo "Waiting for estimator socket"
-        # until [[ -e /tmp/estimator.sock ]]; do
-        #   echo " ... waiting for estimator socket"
-        #   sleep 1
-        # done
+        echo "Waiting for estimator socket"
+        until [[ -e /tmp/estimator.sock ]]; do
+          echo " ... waiting for estimator socket"
+          sleep 1
+        done
 
         echo "starting kepler ..."
         echo " * power-meter disabled: $$DISABLE_POWER_METER"
@@ -62,7 +62,7 @@ services:
       - DISABLE_POWER_METER=${DISABLE_POWER_METER:-true}
 
   estimator:
-    image: quay.io/sustainable_computing_io/kepler_model_server:latest
+    image: quay.io/sustainable_computing_io/kepler_model_server:v0.7.12
     command: [estimator, -l, debug]
 
     volumes:
