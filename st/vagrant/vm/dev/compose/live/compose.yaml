@@ -1,0 +1,87 @@
+name: vm-live-estimator
+services:
+  kepler-models:
+    image: quay.io/sustainable_computing_io/kepler:latest
+    ports:
+      - 9100:9100
+    privileged: true
+    pid: host
+    networks:
+      - kepler-models-network
+    volumes:
+      - type: bind
+        source: /proc
+        target: /proc
+      - type: bind
+        source: /sys
+        target: /sys
+      - type: bind
+        source: ./kepler/models/etc/kepler
+        target: /etc/kepler
+
+        # NOTE: for estimator - kepler communication
+      - /tmp:/tmp
+
+    healthcheck:
+      test: curl -f http://localhost:9100/metrics || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-50s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+
+    cap_add:
+      - ALL
+
+    entrypoint:
+      - /usr/bin/bash
+      - -c
+
+    command:
+      - |
+        echo "Waiting for estimator socket";
+        until [[ -e /tmp/estimator.sock ]]; do
+          echo " ... waiting for estimator socket";
+          sleep 1;
+        done;
+
+        echo "starting kepler";
+        set -x;
+        /usr/bin/kepler \
+          -address="0.0.0.0:9100" \
+          -disable-power-meter \
+          -v="8"
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    pid: host
+    ports:
+      - 9800:9100
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+      - type: bind
+        source: /sys
+        target: /host/sys
+      - type: bind
+        source: /
+        target: /rootfs
+    command:
+      # - --log.level=debug
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.cpufreq
+      - --collector.perf
+      - --collector.meminfo
+      - --collector.rapl
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    user: root
+    networks:
+      - node-exporter-network
+
+networks:
+  node-exporter-network:
+  kepler-models-network:
