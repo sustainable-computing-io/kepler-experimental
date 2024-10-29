@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 5,
   "links": [],
   "panels": [
     {
@@ -95,7 +95,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "metal / vm / package"
+              "options": "metal / vm / pkg"
             },
             "properties": [
               {
@@ -118,7 +118,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "vm / kepler / cpu"
+              "options": "vm / kepler / cpu-time"
             },
             "properties": [
               {
@@ -148,7 +148,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "vm / node-exporter / cpu"
+              "options": "vm / node-exporter / cpu-time"
             },
             "properties": [
               {
@@ -163,7 +163,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": "/package/"
+              "options": "/pkg/"
             },
             "properties": [
               {
@@ -175,7 +175,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "metal / node / package"
+              "options": "metal / node-exporter / pkg"
             },
             "properties": [
               {
@@ -183,46 +183,6 @@
                 "value": {
                   "fixedColor": "super-light-green",
                   "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "metal / node-exporter / package"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "super-light-green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "metal / vm / package",
-                  "vm / kepler / cpu-time"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
                 }
               }
             ]
@@ -255,7 +215,7 @@
             "uid": "PDE6745920139CE56"
           },
           "editorMode": "code",
-          "expr": "sum (rate (node_cpu_seconds_total{job=\"vm-node-exporter\", mode!=\"idle\"}[${rate}s]) ) * 1000",
+          "expr": "sum( rate(node_cpu_seconds_total{job=\"vm-node-exporter\", mode!=\"idle\"}[${rate}s]) ) * 1000",
           "hide": false,
           "instant": false,
           "interval": "1",
@@ -287,7 +247,7 @@
           "hide": false,
           "instant": false,
           "interval": "1",
-          "legendFormat": "metal / vm / package",
+          "legendFormat": "metal / vm / pkg",
           "range": true,
           "refId": "D"
         },
@@ -311,13 +271,27 @@
             "uid": "PDE6745920139CE56"
           },
           "editorMode": "code",
-          "expr": "rate(node_rapl_package_joules_total{job=\"metal-node-exporter\"}[${rate}s])\n\n\n",
+          "expr": "rate(node_rapl_package_joules_total{job=\"metal-node-exporter\"}[${rate}s])\n",
           "hide": false,
           "instant": false,
           "interval": "1",
-          "legendFormat": "metal / node-exporter / package",
+          "legendFormat": "metal / node-exporter / pkg",
           "range": true,
           "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(kepler_node_package_joules_total{job=\"vm\"}[${rate}s]))",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "vm / node / pkg",
+          "range": true,
+          "refId": "F"
         }
       ],
       "title": "Metal and VM - cpu-time and package",
@@ -372,6 +346,268 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "metal / vm / pkg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "watt"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vm / kepler / cpu-time"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/scaph .*/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vm / node-exporter / cpu-time"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/pkg/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "metal / node-exporter / pkg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "sum( rate(node_cpu_seconds_total{job=\"vm-node-exporter\", mode!=\"idle\"}[${rate}s]) ) * 1000",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "vm / node-exporter / cpu-time",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(kepler_process_bpf_cpu_time_ms_total{job=\"vm\", pid!=\"1\"}[${rate}s]))\n",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "vm / kepler / cpu-time",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(kepler_vm_package_joules_total{job=\"metal\"}[${rate}s]))",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "metal / vm / pkg",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "scaph_process_power_consumption_microwatts{pid=\"${process}\"}/1000000\n",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "scaph / {{pid}} - {{exe}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "rate(node_rapl_package_joules_total{job=\"metal-node-exporter\"}[${rate}s])\n",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "metal / node-exporter / pkg",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PDE6745920139CE56"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(kepler_node_package_joules_total{job=\"vm\"}[${rate}s]))",
+          "hide": false,
+          "instant": false,
+          "interval": "1",
+          "legendFormat": "vm / pkg",
+          "range": true,
+          "refId": "F"
+        }
+      ],
+      "title": "Metal and VM - cpu-time and package",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PDE6745920139CE56"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
               },
               {
                 "color": "red",
@@ -520,7 +756,7 @@
         "h": 17,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 35
       },
       "id": 30,
       "options": {
@@ -602,7 +838,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 52
       },
       "id": 22,
       "panels": [],
@@ -624,8 +860,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "super-light-green",
@@ -657,7 +892,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 53
       },
       "id": 20,
       "options": {
@@ -749,8 +984,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "super-light-green",
@@ -781,7 +1015,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 57
       },
       "id": 25,
       "options": {
@@ -873,8 +1107,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -889,7 +1122,7 @@
         "h": 4,
         "w": 11,
         "x": 0,
-        "y": 44
+        "y": 61
       },
       "id": 24,
       "options": {
@@ -941,8 +1174,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -957,7 +1189,7 @@
         "h": 4,
         "w": 13,
         "x": 11,
-        "y": 44
+        "y": 61
       },
       "id": 26,
       "options": {
@@ -1013,7 +1245,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 65
       },
       "id": 15,
       "panels": [],
@@ -1068,8 +1300,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -1185,7 +1416,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 66
       },
       "id": 17,
       "options": {
@@ -1303,8 +1534,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1380,7 +1610,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 66
       },
       "id": 16,
       "options": {
@@ -1529,7 +1759,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 72
       },
       "id": 19,
       "options": {
@@ -1639,7 +1869,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 72
       },
       "id": 18,
       "options": {
@@ -1677,7 +1907,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 78
       },
       "id": 6,
       "panels": [],
@@ -1807,7 +2037,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 79
       },
       "id": 29,
       "options": {
@@ -1982,7 +2212,7 @@
         "h": 10,
         "w": 8,
         "x": 0,
-        "y": 72
+        "y": 89
       },
       "id": 4,
       "options": {
@@ -2106,7 +2336,7 @@
         "h": 10,
         "w": 8,
         "x": 8,
-        "y": 72
+        "y": 89
       },
       "id": 2,
       "options": {
@@ -2220,7 +2450,7 @@
         "h": 10,
         "w": 8,
         "x": 16,
-        "y": 72
+        "y": 89
       },
       "id": 10,
       "options": {
@@ -2262,7 +2492,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 99
       },
       "id": 11,
       "panels": [],
@@ -2392,7 +2622,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 83
+        "y": 100
       },
       "id": 27,
       "options": {
@@ -2529,7 +2759,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 93
+        "y": 110
       },
       "id": 5,
       "options": {
@@ -2640,7 +2870,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 93
+        "y": 110
       },
       "id": 7,
       "options": {
@@ -2738,7 +2968,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 102
+        "y": 119
       },
       "id": 8,
       "options": {
@@ -2849,7 +3079,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 102
+        "y": 119
       },
       "id": 9,
       "options": {
@@ -2894,7 +3124,7 @@
       {
         "current": {
           "selected": false,
-          "text": "vhost-66446 | 66446",
+          "text": "CPU 0/KVM | 66446",
           "value": "66446"
         },
         "datasource": {
@@ -3015,7 +3245,7 @@
             "value": "120"
           }
         ],
-        "query": "5,8,10,12,15,18,20,25,30,35,40,45,50,55,60,90,120",
+        "query": "3, 5, 6, 8, 9, 10,12,15,18,20, 21, 24, 25, 30,35,40,45,50,55,60,90,120,180,240, 360",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
@@ -3028,8 +3258,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Model Training - New",
-  "uid": "fe0xglue75g5cc",
-  "version": 3,
+  "title": "Model Training - New Copy",
+  "uid": "be1wqoxpkc2kga",
+  "version": 4,
   "weekStart": ""
 }
